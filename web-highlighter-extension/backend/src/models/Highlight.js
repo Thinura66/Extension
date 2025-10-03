@@ -4,7 +4,9 @@ const highlightSchema = new mongoose.Schema({
   userId: { type: String, required: true },
   url: { type: String, required: true },
   text: { type: String, required: true },
+  color: { type: String, default: "yellow" },
+  context: { type: String },
   createdAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model("Highlight", highlightSchema);
+module.exports = mongoose.models.Highlight || mongoose.model("Highlight", highlightSchema);
