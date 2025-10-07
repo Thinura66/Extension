@@ -1,0 +1,52 @@
+1️⃣ Why MongoDB is commonly used
+
+MongoDB is a NoSQL document database, which means it stores data as JSON-like documents. For your Chrome extension project:
+
+Highlights data is semi-structured:
+
+{
+  "userId": "abc123",
+  "url": "https://example.com",
+  "text": "Some highlighted text",
+  "color": "yellow",
+  "createdAt": "2025-10-07T11:00:00Z"
+}
+
+
+NoSQL databases like MongoDB are perfect for storing documents like this.
+
+Easy to query by userId and url.
+
+Works well with Node.js and Vercel serverless functions.
+
+2️⃣ Could you use other databases?
+
+Yes! Other options:
+
+Database	Pros	Cons
+MySQL / PostgreSQL (SQL)	Structured, relational, strong constraints	You’d need a table schema, joins, and conversions for JSON; more setup
+Firebase Firestore	Fully managed, real-time, easy JS integration	Different API; querying might be limited
+SQLite	Lightweight, easy local storage	Not suitable for multiple users/devices on the cloud
+Redis	Fast, in-memory	Mostly for caching, not persistent storage
+
+Conclusion: MongoDB is chosen here because:
+
+Cloud-hosted, free-tier Atlas cluster is easy.
+
+Handles JSON-like data naturally.
+
+Simple integration with Node.js/Express/Vercel.
+
+Works perfectly for dynamic, per-user highlights without rigid schemas.
+
+3️⃣ When to choose something else
+
+If your data is highly relational (orders, invoices, foreign keys) → use SQL.
+
+If you need real-time syncing and a serverless backend → Firebase is nice.
+
+If your app is small, single-user, offline → SQLite works.
+
+In short: MongoDB is chosen for ease of use, JSON storage, cloud availability, and Node.js compatibility, which fits your Chrome extension project perfectly.
+
+If you want, I can also show how this would look with Firebase Firestore as an alternative — it might be even easier for a serverless extension.

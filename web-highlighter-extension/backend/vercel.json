@@ -3,6 +3,9 @@
   "functions": {
     "api/highlights.js": {
       "runtime": "@vercel/node@18.x"
+    },
+    "api/db-test.js": {
+      "runtime": "@vercel/node@18.x"
     }
   },
   "routes": [
@@ -13,6 +16,10 @@
     {
       "src": "/api/highlights/(.*)",
       "dest": "/api/highlights.js"
+    },
+    {
+      "src": "/api/db-test",
+      "dest": "/api/db-test.js"
     }
   ],
   "env": {
