@@ -2,10 +2,7 @@
   "version": 2,
   "functions": {
     "api/highlights.js": {
-      "runtime": "nodejs18.x"
-    },
-    "api/test.js": {
-      "runtime": "nodejs18.x"
+      "runtime": "@vercel/node@18.x"
     }
   },
   "routes": [
@@ -14,8 +11,8 @@
       "dest": "/api/highlights.js"
     },
     {
-      "src": "/api/test",
-      "dest": "/api/test.js"
+      "src": "/api/highlights/(.*)",
+      "dest": "/api/highlights.js"
     }
   ],
   "env": {
