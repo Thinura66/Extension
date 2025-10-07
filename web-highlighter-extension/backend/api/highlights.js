@@ -13,6 +13,11 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Add some debug logging
+    console.log('API called:', req.method, req.url);
+    console.log('Query params:', req.query);
+    console.log('Body:', req.body);
+    
     await connectDB();
 
     const { method } = req;
@@ -29,10 +34,15 @@ export default async function handler(req, res) {
 
     if (method === "GET") {
       const { userId, url } = req.query;
+      console.log('GET request - userId:', userId, 'url:', url);
+      
       if (!userId || !url) {
+        console.log('Missing required fields - userId:', !!userId, 'url:', !!url);
         return res.status(400).json({ error: "Missing required fields" });
       }
+      
       const highlights = await Highlight.find({ userId, url }).sort({ createdAt: -1 });
+      console.log('Found highlights:', highlights.length);
       return res.json(highlights);
     }
 

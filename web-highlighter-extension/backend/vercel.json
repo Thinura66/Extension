@@ -1,29 +1,7 @@
 {
   "version": 2,
-  "functions": {
-    "api/highlights.js": {
-      "runtime": "@vercel/node@18.x"
-    },
-    "api/db-test.js": {
-      "runtime": "@vercel/node@18.x"
-    }
-  },
-  "routes": [
-    {
-      "src": "/api/highlights",
-      "dest": "/api/highlights.js"
-    },
-    {
-      "src": "/api/highlights/(.*)",
-      "dest": "/api/highlights.js"
-    },
-    {
-      "src": "/api/db-test",
-      "dest": "/api/db-test.js"
-    }
-  ],
   "env": {
-    "MONGO_URI": "@mongo_uri",
-    "CORS_ORIGIN": "@cors_origin"
+    "MONGO_URI": "mongodb+srv://kahaduwasenitha:123456789kk%40@cluster0.mvrwl.mongodb.net/highlighter?retryWrites=true&w=majority",
+    "CORS_ORIGIN": "*"
   }
 }
