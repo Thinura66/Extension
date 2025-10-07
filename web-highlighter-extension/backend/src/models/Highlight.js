@@ -5,7 +5,6 @@ const highlightSchema = new mongoose.Schema({
   url: { type: String, required: true },
   text: { type: String, required: true },
   color: { type: String, default: "yellow" },
-  context: { type: String },
   createdAt: { type: Date, default: Date.now }
 });
 

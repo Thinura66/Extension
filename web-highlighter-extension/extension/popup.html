@@ -5,8 +5,20 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div id="status" style="display: none;"></div>
+  
   <h3>Web Highlighter</h3>
-  <button id="highlightBtn">Highlight Selected Text</button>
+  
+  <div class="controls">
+    <button id="highlightBtn">Highlight Selected Text</button>
+    <select id="colorSelect">
+      <option value="yellow">Yellow</option>
+      <option value="lightgreen">Green</option>
+      <option value="lightblue">Blue</option>
+      <option value="lightpink">Pink</option>
+      <option value="lightcoral">Orange</option>
+    </select>
+  </div>
 
   <h4>Saved Highlights:</h4>
   <ul id="highlightList"></ul>

@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "functions": {
+    "api/highlights-serverless.js": {
+      "runtime": "@vercel/node@18.x"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/highlights",
+      "dest": "/api/highlights-serverless.js"
+    },
+    {
+      "src": "/api/highlights/(.*)",
+      "dest": "/api/highlights-serverless.js"
+    }
+  ],
+  "env": {
+    "MONGO_URI": "@mongo_uri",
+    "CORS_ORIGIN": "@cors_origin"
+  }
+}

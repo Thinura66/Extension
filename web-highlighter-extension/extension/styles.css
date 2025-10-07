@@ -1,37 +1,128 @@
 body {
   font-family: Arial, sans-serif;
   padding: 10px;
-  width: 250px;
+  width: 300px;
+  min-height: 200px;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+  align-items: center;
 }
 
 button {
-  padding: 8px;
-  margin-bottom: 10px;
-  width: 100%;
+  padding: 8px 12px;
   background: #007bff;
   border: none;
   color: white;
   cursor: pointer;
   border-radius: 4px;
+  flex-grow: 1;
 }
 
 button:hover {
   background: #0056b3;
 }
 
+select {
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+}
+
 ul {
   list-style-type: none;
   padding: 0;
-  max-height: 150px;
+  max-height: 200px;
   overflow-y: auto;
 }
 
 li {
-  padding: 5px;
-  border-bottom: 1px solid #ccc;
-  font-size: 14px;
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+li:last-child {
+  border-bottom: none;
+}
+
+.highlight-item {
+  word-break: break-word;
+}
+
+.delete-btn {
+  padding: 2px 6px !important;
+  background: #dc3545 !important;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.delete-btn:hover {
+  background: #c82333 !important;
 }
 
 .highlighted-text {
   background-color: yellow !important;
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+
+/* Status messages */
+#status {
+  padding: 8px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.status.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.status.warning {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.status.info {
+  background-color: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #b8daff;
+}
+
+h3, h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+}
+
+h3 {
+  font-size: 16px;
+}
+
+h4 {
+  font-size: 14px;
+  margin-top: 15px;
 }
