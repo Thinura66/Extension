@@ -1,8 +1,33 @@
 // API Configuration - Update this with your actual Vercel deployment URL
 const API_BASE_URL = 'https://extension-91zzxab0y-kahaduwasenitha-gmailcoms-projects.vercel.app/api';
 
-// Content script loaded indicator
-console.log('Web Highlighter content script loaded on:', window.location.href);
+// Content script - completely passive, no immediate page modifications
+
+// Inject minimal CSS for highlighted text only when needed
+function injectHighlightStyles() {
+  // Wait for document head to be available
+  if (!document.head) {
+    setTimeout(injectHighlightStyles, 100);
+    return;
+  }
+  
+  const existingStyle = document.getElementById('web-highlighter-styles');
+  if (existingStyle) return; // Already injected
+
+  const style = document.createElement('style');
+  style.id = 'web-highlighter-styles';
+  style.textContent = `
+    span.highlighted-text {
+      background-color: rgba(255, 255, 0, 0.3) !important;
+      border-radius: 2px !important;
+      padding: 1px 2px !important;
+    }
+    span.highlighted-text:hover {
+      background-color: rgba(255, 255, 0, 0.5) !important;
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 // Generate a simple user ID (you can make this more sophisticated)
 const getUserId = () => {
@@ -82,6 +107,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Content script received message:', request);
   
   if (request.action === "highlight") {
+    // Inject styles only when highlighting is actually used
+    injectHighlightStyles();
+    
     const selection = window.getSelection();
     if (!selection.rangeCount || selection.toString().trim() === '') {
       sendResponse({ success: false, error: 'Please select text to highlight' });
@@ -90,9 +118,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     const range = selection.getRangeAt(0);
     const span = document.createElement("span");
-    span.style.backgroundColor = request.color || "yellow";
     span.className = "highlighted-text";
     span.setAttribute('data-highlight-id', Date.now().toString());
+    // Use CSS class instead of inline styles to avoid conflicts
     
     try {
       range.surroundContents(span);
