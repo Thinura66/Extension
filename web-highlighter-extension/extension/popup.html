@@ -5,23 +5,51 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div id="status" style="display: none;"></div>
-  
-  <h3>Web Highlighter</h3>
-  
-  <div class="controls">
-    <button id="highlightBtn">Highlight Selected Text</button>
-    <select id="colorSelect">
-      <option value="yellow">Yellow</option>
-      <option value="lightgreen">Green</option>
-      <option value="lightblue">Blue</option>
-      <option value="lightpink">Pink</option>
-      <option value="lightcoral">Orange</option>
-    </select>
-  </div>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <h1 class="title">Web Highlighter</h1>
+      <div id="status" class="status-message"></div>
+    </header>
 
-  <h4>Saved Highlights:</h4>
-  <ul id="highlightList"></ul>
+    <!-- Main Control Section -->
+    <section class="main-section">
+      <div class="highlight-controls">
+        <button id="highlightBtn" class="primary-button">
+          Highlight Selected Text
+        </button>
+      </div>
+    </section>
+
+    <!-- Highlights Section -->
+    <section class="highlights-section">
+      <div class="section-header">
+        <h2 class="section-title">Your Highlights</h2>
+        <div class="highlight-stats">
+          <span id="highlightCount" class="count">0</span>
+        </div>
+      </div>
+      
+      <div class="selection-controls">
+        <button id="selectAllBtn" class="selection-btn">Select All</button>
+        <button id="deselectAllBtn" class="selection-btn">Deselect All</button>
+      </div>
+      
+      <div class="highlights-container">
+        <ul id="highlightList" class="highlight-list"></ul>
+        <div id="emptyState" class="empty-state">
+          <p class="empty-message">No highlights yet</p>
+          <p class="empty-hint">Select text on this page and click "Highlight Selected Text" to get started</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Action Buttons -->
+    <section class="actions-section">
+      <button id="clearAllBtn" class="secondary-button">Clear All Highlights</button>
+      <button id="exportBtn" class="secondary-button">Export Highlights</button>
+    </section>
+  </div>
 
   <script src="popup.js"></script>
 </body>

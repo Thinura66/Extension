@@ -4,7 +4,6 @@ const API_BASE_URL = 'https://extension-91zzxab0y-kahaduwasenitha-gmailcoms-proj
 // Content script loaded indicator
 console.log('Web Highlighter content script loaded on:', window.location.href);
 
-
 // Generate a simple user ID (you can make this more sophisticated)
 const getUserId = () => {
   return chrome.runtime.id || 'anonymous-user';
@@ -77,7 +76,8 @@ async function syncWithAPI(highlightData) {
   }
 }
 
-// Listen for messages from popup.js
+
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Content script received message:', request);
   

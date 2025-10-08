@@ -1,8 +1,7 @@
-// API Configuration - Update this with your actual Vercel deployment URL
-const API_BASE_URL = 'https://extension-91zzxab0y-kahaduwasenitha-gmailcoms-projects.vercel.app/api';
+// Track selected highlights
+let selectedHighlights = new Set();
 
-
-// Generate a simple user ID (you can make this more sophisticated)
+// Generate a simple user ID for local storage organization
 const getUserId = () => {
   return chrome.runtime.id || 'anonymous-user';
 };
@@ -16,326 +15,415 @@ async function getCurrentTabUrl() {
   });
 }
 
-// Highlight button event listener
-document.getElementById("highlightBtn").addEventListener("click", async () => {
-  const colorSelect = document.getElementById("colorSelect");
-  const selectedColor = colorSelect ? colorSelect.value : 'yellow';
+// Show status message
+function showStatus(message, type = 'info') {
+  const statusEl = document.getElementById('status');
+  statusEl.textContent = message;
+  statusEl.className = `status-message show ${type}`;
   
-  try {
-    const tabs = await new Promise((resolve, reject) => {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-        } else {
-          resolve(tabs);
-        }
-      });
-    });
-
-    if (!tabs || tabs.length === 0) {
-      showStatus('No active tab found', 'error');
-      return;
-    }
-
-    const activeTab = tabs[0];
-    
-    // Check if we can access this tab (some tabs like chrome:// pages are restricted)
-    if (activeTab.url.startsWith('chrome://') || activeTab.url.startsWith('chrome-extension://') || activeTab.url.startsWith('edge://') || activeTab.url.startsWith('about:')) {
-      showStatus('Cannot highlight on this page', 'warning');
-      return;
-    }
-
-    // Inject content script if not already present
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId: activeTab.id },
-        files: ['content.js']
-      });
-    } catch (injectionError) {
-      console.log('Content script might already be injected:', injectionError.message);
-    }
-
-    // Send message to content script
-    chrome.tabs.sendMessage(activeTab.id, { 
-      action: "highlight",
-      color: selectedColor 
-    }, (response) => {
-      // Clear any previous runtime errors
-      if (chrome.runtime.lastError) {
-        console.error('Message sending error:', chrome.runtime.lastError.message);
-        
-        // Fallback: Try to execute highlighting directly
-        try {
-          chrome.scripting.executeScript({
-            target: { tabId: activeTab.id },
-            func: () => {
-              const selection = window.getSelection();
-              if (selection.rangeCount > 0 && selection.toString().trim() !== '') {
-                const range = selection.getRangeAt(0);
-                const span = document.createElement("span");
-                span.style.backgroundColor = "yellow";
-                span.className = "highlighted-text";
-                range.surroundContents(span);
-                return { success: true, text: selection.toString() };
-              }
-              return { success: false, error: 'No text selected' };
-            }
-          }, (results) => {
-            if (results && results[0] && results[0].result) {
-              const result = results[0].result;
-              if (result.success) {
-                // Save to local storage directly
-                chrome.storage.local.get(['highlights'], (storageResult) => {
-                  const highlights = storageResult.highlights || [];
-                  highlights.push({
-                    id: Date.now().toString(),
-                    text: result.text,
-                    url: activeTab.url,
-                    color: selectedColor,
-                    createdAt: new Date().toISOString()
-                  });
-                  chrome.storage.local.set({ highlights }, () => {
-                    loadHighlights();
-                    showStatus('Highlight saved!', 'success');
-                  });
-                });
-              } else {
-                showStatus(result.error, 'warning');
-              }
-            } else {
-              showStatus('Please select text to highlight', 'warning');
-            }
-          });
-        } catch (fallbackError) {
-          console.error('Fallback highlighting failed:', fallbackError);
-          showStatus('Cannot highlight on this page', 'error');
-        }
-        return;
-      }
-
-      if (response && response.success) {
-        loadHighlights();
-        showStatus('Highlight saved!', 'success');
-      } else if (response && response.error) {
-        showStatus(response.error, 'warning');
-      } else {
-        showStatus('Please select text to highlight', 'warning');
-      }
-    });
-
-  } catch (error) {
-    console.error('Highlighting error:', error);
-    showStatus('Error: ' + error.message, 'error');
-  }
-});
-
-// Load highlights from API with robust fallback
-async function loadHighlights() {
-  try {
-    const currentUrl = await getCurrentTabUrl();
-    
-    // Try API first (with timeout)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-    
-    const response = await fetch(`${API_BASE_URL}/highlights?userId=${getUserId()}&url=${encodeURIComponent(currentUrl)}`, {
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const highlights = await response.json();
-    displayHighlights(highlights);
-    showStatus('Highlights loaded from server', 'success');
-    
-  } catch (error) {
-    console.log('API unavailable, using local storage:', error.message);
-    
-    // Fallback to local storage
-    try {
-      const currentUrl = await getCurrentTabUrl();
-      chrome.storage.local.get(["highlights"], (result) => {
-        if (chrome.runtime.lastError) {
-          console.error('Chrome storage error:', chrome.runtime.lastError);
-          displayHighlights([]);
-          showStatus('Error loading highlights', 'error');
-          return;
-        }
-        
-        const allHighlights = result.highlights || [];
-        const pageHighlights = allHighlights.filter(h => h.url === currentUrl);
-        displayHighlights(pageHighlights);
-        
-        if (pageHighlights.length > 0) {
-          showStatus('Loaded offline highlights', 'warning');
-        } else {
-          showStatus('No highlights found', 'info');
-        }
-      });
-    } catch (fallbackError) {
-      console.error('Fallback error:', fallbackError);
-      displayHighlights([]);
-      showStatus('Error loading highlights', 'error');
-    }
-  }
+  // Auto-hide after 3 seconds
+  setTimeout(() => {
+    statusEl.classList.remove('show');
+  }, 3000);
 }
 
 // Display highlights in the popup
 function displayHighlights(highlights) {
   const list = document.getElementById("highlightList");
+  const emptyState = document.getElementById("emptyState");
+  const countEl = document.getElementById("highlightCount");
+  
+  // Update counter
+  countEl.textContent = highlights.length;
+  
+  // Clear existing highlights
   list.innerHTML = "";
   
   if (highlights.length === 0) {
-    const li = document.createElement("li");
-    li.textContent = "No highlights found for this page";
-    li.style.fontStyle = "italic";
-    li.style.color = "#666";
-    list.appendChild(li);
+    emptyState.style.display = "block";
+    list.style.display = "none";
     return;
   }
   
-  highlights.forEach((item) => {
+  emptyState.style.display = "none";
+  list.style.display = "block";
+  
+  highlights.forEach((highlight) => {
     const li = document.createElement("li");
     li.className = "highlight-item";
+    li.setAttribute("data-highlight-id", highlight.id);
     
-    const textSpan = document.createElement("span");
-    textSpan.textContent = item.text.length > 50 ? item.text.substring(0, 50) + '...' : item.text;
-    textSpan.style.backgroundColor = item.color || 'yellow';
-    textSpan.style.padding = '2px 4px';
-    textSpan.style.borderRadius = '3px';
-    textSpan.style.marginRight = '8px';
+    // Add selection functionality
+    li.addEventListener("click", (e) => {
+      // Don't trigger if clicking on action buttons
+      if (e.target.closest('.highlight-actions')) return;
+      
+      toggleHighlightSelection(highlight.id, li);
+    });
     
+    // Content container
+    const contentDiv = document.createElement("div");
+    contentDiv.className = "highlight-content";
+    
+    // Highlight text
+    const textDiv = document.createElement("div");
+    textDiv.className = "highlight-text";
+    textDiv.textContent = highlight.text;
+    
+    // Meta information
+    const metaDiv = document.createElement("div");
+    metaDiv.className = "highlight-meta";
+    
+    const dateSpan = document.createElement("span");
+    const date = new Date(highlight.createdAt);
+    dateSpan.textContent = date.toLocaleDateString();
+    
+    metaDiv.appendChild(dateSpan);
+    contentDiv.appendChild(textDiv);
+    contentDiv.appendChild(metaDiv);
+    
+    // Actions container
+    const actionsDiv = document.createElement("div");
+    actionsDiv.className = "highlight-actions";
+    
+    // Copy button
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "action-btn copy";
+    copyBtn.textContent = "Copy";
+    copyBtn.title = "Copy text to clipboard";
+    copyBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      copyToClipboard(highlight.text, copyBtn);
+    });
+    
+    // Delete button
     const deleteBtn = document.createElement("button");
-    deleteBtn.textContent = "×";
-    deleteBtn.className = "delete-btn";
-    deleteBtn.style.marginLeft = "8px";
-    deleteBtn.style.background = "#ff4444";
-    deleteBtn.style.color = "white";
-    deleteBtn.style.border = "none";
-    deleteBtn.style.borderRadius = "3px";
-    deleteBtn.style.cursor = "pointer";
-    deleteBtn.style.padding = "2px 6px";
+    deleteBtn.className = "action-btn delete";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.title = "Delete highlight";
+    deleteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteHighlight(highlight.id, highlight.text);
+    });
     
-    deleteBtn.addEventListener("click", () => deleteHighlight(item._id || item.id, li));
+    actionsDiv.appendChild(copyBtn);
+    actionsDiv.appendChild(deleteBtn);
     
-    li.appendChild(textSpan);
-    li.appendChild(deleteBtn);
+    li.appendChild(contentDiv);
+    li.appendChild(actionsDiv);
     list.appendChild(li);
   });
 }
 
-// Delete highlight
-async function deleteHighlight(highlightId, listItem) {
+// Toggle highlight selection
+function toggleHighlightSelection(highlightId, listItem) {
+  if (selectedHighlights.has(highlightId)) {
+    selectedHighlights.delete(highlightId);
+    listItem.classList.remove('selected');
+  } else {
+    selectedHighlights.add(highlightId);
+    listItem.classList.add('selected');
+  }
+  
+  updateSelectionUI();
+}
+
+// Update UI based on selection
+function updateSelectionUI() {
+  const selectedCount = selectedHighlights.size;
+  const exportBtn = document.getElementById("exportBtn");
+  const clearAllBtn = document.getElementById("clearAllBtn");
+  
+  if (selectedCount > 0) {
+    exportBtn.textContent = `Export Selected (${selectedCount})`;
+    clearAllBtn.textContent = `Delete Selected (${selectedCount})`;
+  } else {
+    exportBtn.textContent = "Export All Highlights";
+    clearAllBtn.textContent = "Clear All Highlights";
+  }
+}
+
+// Select all highlights
+function selectAllHighlights() {
+  const highlightItems = document.querySelectorAll('.highlight-item');
+  highlightItems.forEach(item => {
+    const highlightId = item.getAttribute('data-highlight-id');
+    if (highlightId && !selectedHighlights.has(highlightId)) {
+      selectedHighlights.add(highlightId);
+      item.classList.add('selected');
+    }
+  });
+  updateSelectionUI();
+}
+
+// Deselect all highlights
+function deselectAllHighlights() {
+  selectedHighlights.clear();
+  const highlightItems = document.querySelectorAll('.highlight-item');
+  highlightItems.forEach(item => {
+    item.classList.remove('selected');
+  });
+  updateSelectionUI();
+}
+
+// Load highlights from local storage
+async function loadHighlights() {
   try {
-    // Delete from local storage first
-    chrome.storage.local.get(['highlights'], (result) => {
+    const currentUrl = await getCurrentTabUrl();
+    chrome.storage.local.get(["highlights"], (result) => {
       if (chrome.runtime.lastError) {
         console.error('Chrome storage error:', chrome.runtime.lastError);
+        showStatus('Error loading highlights', 'error');
+        return;
+      }
+      
+      const allHighlights = result.highlights || [];
+      const pageHighlights = allHighlights.filter(h => h.url === currentUrl);
+      displayHighlights(pageHighlights);
+      updateSelectionUI();
+      
+      if (pageHighlights.length > 0) {
+        showStatus(`Loaded ${pageHighlights.length} highlights`, 'success');
+      }
+    });
+  } catch (error) {
+    console.error('Error loading highlights:', error);
+    showStatus('Error loading highlights', 'error');
+  }
+}
+
+// Delete highlight
+function deleteHighlight(highlightId, text) {
+  const confirmText = text.length > 50 ? text.substring(0, 50) + '...' : text;
+  if (!confirm(`Delete this highlight?\n\n"${confirmText}"`)) {
+    return;
+  }
+  
+  chrome.storage.local.get(['highlights'], (result) => {
+    if (chrome.runtime.lastError) {
+      console.error('Chrome storage error:', chrome.runtime.lastError);
+      showStatus('Failed to delete highlight', 'error');
+      return;
+    }
+    
+    const highlights = result.highlights || [];
+    const updatedHighlights = highlights.filter(h => h.id !== highlightId);
+    
+    chrome.storage.local.set({ highlights: updatedHighlights }, () => {
+      if (chrome.runtime.lastError) {
+        console.error('Chrome storage set error:', chrome.runtime.lastError);
         showStatus('Failed to delete highlight', 'error');
         return;
       }
+      
+      loadHighlights();
+      showStatus('Highlight deleted', 'success');
+    });
+  });
+}
 
+// Copy to clipboard
+function copyToClipboard(text, button) {
+  navigator.clipboard.writeText(text).then(() => {
+    const originalText = button.textContent;
+    button.textContent = 'Copied!';
+    button.style.background = '#28a745';
+    button.style.color = 'white';
+    
+    setTimeout(() => {
+      button.textContent = originalText;
+      button.style.background = '';
+      button.style.color = '';
+    }, 1500);
+    
+    showStatus('Text copied to clipboard!', 'success');
+  }).catch(err => {
+    console.error('Failed to copy:', err);
+    showStatus('Failed to copy text', 'error');
+  });
+}
+
+// Clear all highlights or selected highlights
+function clearAllHighlights() {
+  if (selectedHighlights.size > 0) {
+    // Delete selected highlights
+    const selectedCount = selectedHighlights.size;
+    if (!confirm(`Are you sure you want to delete ${selectedCount} selected highlight${selectedCount > 1 ? 's' : ''}? This cannot be undone.`)) {
+      return;
+    }
+    
+    chrome.storage.local.get(['highlights'], (result) => {
+      if (chrome.runtime.lastError) {
+        console.error('Chrome storage error:', chrome.runtime.lastError);
+        showStatus('Failed to delete highlights', 'error');
+        return;
+      }
+      
       const highlights = result.highlights || [];
-      const updatedHighlights = highlights.filter(h => h.id !== highlightId && h._id !== highlightId);
+      const updatedHighlights = highlights.filter(h => !selectedHighlights.has(h.id));
       
       chrome.storage.local.set({ highlights: updatedHighlights }, () => {
         if (chrome.runtime.lastError) {
           console.error('Chrome storage set error:', chrome.runtime.lastError);
-          showStatus('Failed to delete highlight', 'error');
+          showStatus('Failed to delete highlights', 'error');
           return;
         }
         
-        listItem.remove();
-        showStatus('Highlight deleted!', 'success');
-        
-        // Try to delete from API in background (non-blocking)
-        if (highlightId) {
-          deleteFromAPI(highlightId).catch(err => {
-            console.log('API delete failed (not critical):', err.message);
-          });
-        }
+        selectedHighlights.clear();
+        loadHighlights();
+        showStatus(`${selectedCount} highlight${selectedCount > 1 ? 's' : ''} deleted`, 'success');
       });
     });
+  } else {
+    // Delete all highlights
+    if (!confirm('Are you sure you want to delete ALL highlights? This cannot be undone.')) {
+      return;
+    }
     
-  } catch (error) {
-    console.error('Error deleting highlight:', error);
-    showStatus('Failed to delete highlight', 'error');
+    chrome.storage.local.set({ highlights: [] }, () => {
+      if (chrome.runtime.lastError) {
+        console.error('Chrome storage set error:', chrome.runtime.lastError);
+        showStatus('Failed to clear highlights', 'error');
+        return;
+      }
+      
+      selectedHighlights.clear();
+      loadHighlights();
+      showStatus('All highlights cleared', 'success');
+    });
   }
 }
 
-// Background delete from API (non-blocking)
-async function deleteFromAPI(highlightId) {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
+// Export highlights
+function exportHighlights() {
+  chrome.storage.local.get(['highlights'], (result) => {
+    const allHighlights = result.highlights || [];
+    if (allHighlights.length === 0) {
+      showStatus('No highlights to export', 'warning');
+      return;
+    }
     
-    const response = await fetch(`${API_BASE_URL}/highlights?id=${highlightId}`, {
-      method: 'DELETE',
-      signal: controller.signal
+    // Filter highlights based on selection
+    let highlightsToExport;
+    if (selectedHighlights.size > 0) {
+      highlightsToExport = allHighlights.filter(h => selectedHighlights.has(h.id));
+      if (highlightsToExport.length === 0) {
+        showStatus('No selected highlights to export', 'warning');
+        return;
+      }
+    } else {
+      highlightsToExport = allHighlights;
+    }
+    
+    // Create formatted text content
+    const today = new Date();
+    const dateStr = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
+    const exportType = selectedHighlights.size > 0 ? 'Selected ' : '';
+    
+    let textContent = `Web Highlighter - Exported ${exportType}Highlights (${dateStr})\n`;
+    textContent += '============================================================\n\n';
+    
+    highlightsToExport.forEach((highlight, index) => {
+      const date = new Date(highlight.createdAt);
+      const formattedDate = `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+      const formattedTime = date.toLocaleTimeString();
+      
+      textContent += `${index + 1}. ${highlight.text}\n`;
+      textContent += `   Date: ${formattedDate}, ${formattedTime}\n\n`;
     });
     
-    clearTimeout(timeoutId);
+    // Create and download the text file
+    const dataBlob = new Blob([textContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(dataBlob);
     
-    if (response.ok) {
-      console.log('Successfully deleted from API');
-    }
-  } catch (error) {
-    console.log('API delete failed:', error.message);
-  }
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Web-Highlighter-Exported-Highlights-${today.getMonth() + 1}-${today.getDate()}-${today.getFullYear()}.txt`;
+    link.click();
+    
+    URL.revokeObjectURL(url);
+    showStatus('Highlights exported successfully', 'success');
+  });
 }
 
-// Show status message
-function showStatus(message, type = 'info') {
-  const statusDiv = document.getElementById('status') || createStatusDiv();
-  statusDiv.textContent = message;
-  statusDiv.className = `status ${type}`;
-  statusDiv.style.display = 'block';
-  
-  setTimeout(() => {
-    statusDiv.style.display = 'none';
-  }, 3000);
-}
 
-// Create status div if it doesn't exist
-function createStatusDiv() {
-  const statusDiv = document.createElement('div');
-  statusDiv.id = 'status';
-  statusDiv.style.cssText = `
-    padding: 8px;
-    margin: 8px 0;
-    border-radius: 4px;
-    text-align: center;
-    font-size: 12px;
-    display: none;
-  `;
-  document.body.insertBefore(statusDiv, document.body.firstChild);
-  return statusDiv;
-}
 
-// Load highlights on popup open
+// Initialize popup when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
+  // Load existing highlights
   loadHighlights();
   
-  // Add color selector if it doesn't exist
-  const colorSelect = document.getElementById("colorSelect");
-  if (!colorSelect && document.getElementById("highlightBtn")) {
-    const select = document.createElement("select");
-    select.id = "colorSelect";
-    select.style.marginLeft = "8px";
-    select.innerHTML = `
-      <option value="yellow">Yellow</option>
-      <option value="lightgreen">Green</option>
-      <option value="lightblue">Blue</option>
-      <option value="lightpink">Pink</option>
-      <option value="lightcoral">Orange</option>
-    `;
-    document.getElementById("highlightBtn").parentNode.appendChild(select);
-  }
+  // Highlight button event listener
+  document.getElementById("highlightBtn").addEventListener("click", async () => {
+    try {
+      const tabs = await new Promise((resolve, reject) => {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(tabs);
+          }
+        });
+      });
+
+      if (!tabs || tabs.length === 0) {
+        showStatus('No active tab found', 'error');
+        return;
+      }
+
+      const activeTab = tabs[0];
+      
+      // Check if we can access this tab
+      if (activeTab.url.startsWith('chrome://') || activeTab.url.startsWith('chrome-extension://') || activeTab.url.startsWith('edge://') || activeTab.url.startsWith('about:')) {
+        showStatus('Cannot highlight on this page', 'warning');
+        return;
+      }
+
+      // Inject content script if not already present
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: activeTab.id },
+          files: ['content.js']
+        });
+      } catch (injectionError) {
+        console.log('Content script might already be injected:', injectionError.message);
+      }
+
+      // Send message to content script
+      chrome.tabs.sendMessage(activeTab.id, { 
+        action: "highlight",
+        color: "yellow" 
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Message sending error:', chrome.runtime.lastError.message);
+          showStatus('Error highlighting text. Please select text first.', 'error');
+          return;
+        }
+
+        if (response && response.success) {
+          loadHighlights();
+          showStatus('Text highlighted successfully!', 'success');
+        } else if (response && response.error) {
+          showStatus(response.error, 'warning');
+        } else {
+          showStatus('Please select text to highlight', 'warning');
+        }
+      });
+
+    } catch (error) {
+      console.error('Highlighting error:', error);
+      showStatus('Error: ' + error.message, 'error');
+    }
+  });
+  
+  // Clear all button
+  document.getElementById("clearAllBtn").addEventListener("click", clearAllHighlights);
+  
+  // Export button
+  document.getElementById("exportBtn").addEventListener("click", exportHighlights);
+  
+  // Selection control buttons
+  document.getElementById("selectAllBtn").addEventListener("click", selectAllHighlights);
+  document.getElementById("deselectAllBtn").addEventListener("click", deselectAllHighlights);
+  
 });
